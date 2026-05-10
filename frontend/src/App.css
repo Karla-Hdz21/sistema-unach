@@ -1,0 +1,38 @@
+/* Agrega esto al final de tu App.css */
+
+.scanner-wrapper {
+  width: 100%;
+  max-width: 450px;
+  margin: 20px auto;
+  border: 4px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: black;
+}
+
+.status-display {
+  padding: 1.5rem;
+  margin-top: 1rem;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+}
+
+/* Colores basados en el estado de la asistencia */
+.status-espera {
+  color: var(--text-h);
+  background: var(--accent-bg);
+}
+
+.status-exito {
+  color: #ffffff;
+  background: #27ae60; /* Verde éxito */
+  box-shadow: 0 4px 14px 0 rgba(39, 174, 96, 0.39);
+}
+
+.status-error {
+  color: #ffffff;
+  background: #c0392b; /* Rojo error */
+  box-shadow: 0 4px 14px 0 rgba(192, 57, 43, 0.39);
+}
