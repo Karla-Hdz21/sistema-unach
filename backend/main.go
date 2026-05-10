@@ -20,8 +20,9 @@ type AsistenciaRequest struct {
 	ClaseID  int    `json:"clase_id"`
 }
 
+// --- CAMBIO 1: La URL de Python debe usar la IP de AWS ---
 func avisarAPython(alumnoID string, materia string) {
-	url := "http://localhost:8001/notificar"
+	url := "http://184.73.140.150:8001/notificar" 
 	datos := map[string]string{"alumno_id": alumnoID, "materia": materia}
 	body, _ := json.Marshal(datos)
 	http.Post(url, "application/json", bytes.NewBuffer(body))
@@ -32,33 +33,40 @@ func esHorarioPermitido(claseNombre string) bool {
 	dia := ahora.Weekday()
 	minutos := ahora.Hour()*60 + ahora.Minute()
 
-	// --- HORARIOS OFICIALES 6N LIDTS ---
 	if claseNombre == "Compiladores" {
-		if dia == time.Monday && minutos >= 1080 && minutos <= 1140 { return true } // 18:00-19:00
-		if dia == time.Wednesday && minutos >= 960 && minutos <= 1080 { return true } // 16:00-18:00
-		if dia == time.Friday && minutos >= 1020 && minutos <= 1140 { return true } // 17:00-19:00
+		if dia == time.Monday && minutos >= 1080 && minutos <= 1140 { return true }
+		if dia == time.Wednesday && minutos >= 960 && minutos <= 1080 { return true }
+		if dia == time.Friday && minutos >= 1020 && minutos <= 1140 { return true }
 	}
 	if claseNombre == "Taller 4" {
-		if dia == time.Tuesday && minutos >= 1140 && minutos <= 1200 { return true } // 19:00-20:00
-		if dia == time.Thursday && minutos >= 1200 && minutos <= 1260 { return true } // 20:00-21:00
+		if dia == time.Tuesday && minutos >= 1140 && minutos <= 1200 { return true }
+		if dia == time.Thursday && minutos >= 1200 && minutos <= 1260 { return true }
 	}
 	
-	// Permitir pruebas los Sábados y Domingos
 	if dia == time.Saturday || dia == time.Sunday { return true }
 	return false
 }
 
 func main() {
+	// --- CAMBIO 2: La conexión a la DB suele ser local dentro del servidor ---
+	// Si tu base de datos corre en el mismo AWS, dejamos 'localhost' o usamos 'db' si usas Docker
 	connStr := "postgresql://postgres:unah2026@localhost:5432/sistema_unach?sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil { log.Fatal(err) }
 
 	app := fiber.New()
-	app.Use(cors.New(cors.Config{AllowOrigins: "http://localhost:5173"}))
+
+	// --- CAMBIO 3: Permitir que Vercel se conecte (CORS) ---
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "https://sistema-unach.vercel.app, http://localhost:5173",
+		AllowHeaders: "Origin, Content-Type, Accept",
+	}))
 
 	app.Post("/asistencia", func(c *fiber.Ctx) error {
 		var req AsistenciaRequest
-		c.BodyParser(&req)
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(400).JSON(fiber.Map{"mensaje": "Error en los datos"})
+		}
 		
 		var nombreClase string
 		db.QueryRow("SELECT nombre FROM clases WHERE id = $1", req.ClaseID).Scan(&nombreClase)
@@ -67,7 +75,6 @@ func main() {
 			return c.Status(403).JSON(fiber.Map{"mensaje": "Acceso Denegado: Fuera de horario"})
 		}
 
-		// VALIDACIÓN DE DUPLICADOS (Evita el doble registro)
 		var existe int
 		db.QueryRow("SELECT COUNT(*) FROM asistencias WHERE alumno_id=$1 AND clase_id=$2 AND fecha_hora::date = CURRENT_DATE", req.AlumnoID, req.ClaseID).Scan(&existe)
 		if existe > 0 {
@@ -105,7 +112,6 @@ func main() {
 			if e == "Asistió" { asistentes = append(asistentes, n) } else { faltantes = append(faltantes, n) }
 		}
 
-		// GENERACIÓN DE PDF
 		pdf := gofpdf.New("P", "mm", "A4", "")
 		pdf.AddPage()
 		pdf.SetFont("Arial", "B", 16)
@@ -118,7 +124,6 @@ func main() {
 		filename := "Reporte_Asistencia.pdf"
 		pdf.OutputFileAndClose(filename)
 
-		// ENVÍO DE CORREO (Asegúrate de que las credenciales sean correctas)
 		m := gomail.NewMessage()
 		m.SetHeader("From", "kar.nunez34@unach.mx")
 		m.SetHeader("To", "luis.gutierrez@unach.mx") 
@@ -145,5 +150,6 @@ func main() {
 		return c.JSON(clases)
 	})
 
-	log.Fatal(app.Listen(":3000"))
+	// --- CAMBIO 4: Escuchar en todas las interfaces ---
+	log.Fatal(app.Listen("0.0.0.0:3000"))
 }
