@@ -21,7 +21,8 @@ type AsistenciaRequest struct {
 }
 
 func avisarAPython(alumnoID string, materia string) {
-	url := "http://3.84.127.65:8001/notificar"
+	// ACTUALIZADO: Nueva IP Elástica
+	url := "http://54.173.32.242:8001/notificar"
 	datos := map[string]string{"alumno_id": alumnoID, "materia": materia}
 	body, _ := json.Marshal(datos)
 	http.Post(url, "application/json", bytes.NewBuffer(body))
@@ -46,7 +47,6 @@ func esHorarioPermitido(claseNombre string) bool {
 }
 
 func main() {
-	// --- CORRECCIÓN DE CONEXIÓN Y SINTAXIS ---
 	connStr := "postgresql://postgres:unah2026@db:5432/sistema_unach?sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -61,7 +61,6 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 
-	// RUTA PARA MATERIAS
 	handlerMaterias := func(c *fiber.Ctx) error {
 		rows, err := db.Query("SELECT DISTINCT id, nombre FROM clases ORDER BY nombre ASC")
 		if err != nil {
@@ -82,7 +81,6 @@ func main() {
 	app.Get("/clases", handlerMaterias)
 	app.Get("/api/materias", handlerMaterias)
 
-	// RUTA PARA ASISTENCIA
 	app.Post("/api/asistencia", func(c *fiber.Ctx) error {
 		var req AsistenciaRequest
 		if err := c.BodyParser(&req); err != nil {
@@ -105,7 +103,6 @@ func main() {
 		return c.JSON(fiber.Map{"mensaje": "¡Bienvenido, " + nombreAlum + "!"})
 	})
 
-	// RUTA PARA CERRAR CLASE
 	app.Post("/api/cerrar-clase", func(c *fiber.Ctx) error {
 		var req struct { ClaseID int `json:"clase_id"` }
 		c.BodyParser(&req)

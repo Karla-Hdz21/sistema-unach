@@ -7,9 +7,11 @@ function App() {
   const [mensaje, setMensaje] = useState("");
   const [escaneando, setEscaneando] = useState(true);
 
-  // Cargar las materias desde el backend en AWS
+  // ACTUALIZADO: Usando la nueva IP Elástica 54.173.32.242
+  const API_BASE = "http://54.173.32.242:3000";
+
   useEffect(() => {
-    fetch('http://184.73.140.150:3000/clases')
+    fetch(`${API_BASE}/clases`)
       .then(res => res.json())
       .then(data => setClases(data))
       .catch(err => console.error("Error cargando clases:", err));
@@ -17,9 +19,9 @@ function App() {
 
   const handleScan = (result) => {
     if (result && result[0]?.rawValue && escaneando) {
-      setEscaneando(false); // Bloquea el escáner temporalmente
+      setEscaneando(false);
       
-      fetch('http://184.73.140.150:3000/asistencia', {
+      fetch(`${API_BASE}/api/asistencia`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -30,7 +32,6 @@ function App() {
       .then(res => res.json())
       .then(data => {
         setMensaje(data.mensaje);
-        // Espera 3 segundos para reactivar el escáner y limpiar el mensaje
         setTimeout(() => {
           setMensaje("");
           setEscaneando(true);
@@ -45,8 +46,7 @@ function App() {
 
   const enviarReporte = () => {
     if(window.confirm("¿Enviar reporte del grupo 6N LIDTS?")) {
-      // URL Corregida: se eliminó el doble http://
-      fetch('http://184.73.140.150:3000/cerrar-clase', {
+      fetch(`${API_BASE}/api/cerrar-clase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clase_id: seleccion.id })
@@ -59,20 +59,18 @@ function App() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Arial', backgroundColor: '#121212', color: 'white' }}>
-      {/* Sidebar con información de la UNACH */}
       <div style={{ width: '250px', backgroundColor: '#003b70', padding: '20px' }}>
         <h2>SIAE</h2>
         <p>UNACH - LIDTS</p>
         <p style={{fontSize: '0.8em', color: '#ccc'}}>Grupo: 6N LIDTS</p>
       </div>
 
-      {/* Contenido Principal */}
       <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <div style={{ backgroundColor: 'white', color: '#333', padding: '30px', borderRadius: '15px', width: '450px', textAlign: 'center' }}>
           {!seleccion ? (
             <>
               <h3>Seleccione Materia</h3>
-              {clases.map(c => (
+              {clases && clases.length > 0 ? clases.map(c => (
                 <button 
                   key={c.id} 
                   onClick={() => setSeleccion(c)} 
@@ -80,7 +78,7 @@ function App() {
                 >
                   {c.nombre}
                 </button>
-              ))}
+              )) : <p>Cargando materias...</p>}
             </>
           ) : (
             <>
