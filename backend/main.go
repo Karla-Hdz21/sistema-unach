@@ -21,7 +21,7 @@ type AsistenciaRequest struct {
 }
 
 func avisarAPython(alumnoID string, materia string) {
-	url := "http://3.84.127.65:8001/notificar" 
+	url := "http://3.84.127.65:8001/notificar"
 	datos := map[string]string{"alumno_id": alumnoID, "materia": materia}
 	body, _ := json.Marshal(datos)
 	http.Post(url, "application/json", bytes.NewBuffer(body))
@@ -46,10 +46,13 @@ func esHorarioPermitido(claseNombre string) bool {
 }
 
 func main() {
-	// Asegúrate de que la base de datos esté corriendo en el puerto 5432
+	// --- CORRECCIÓN DE CONEXIÓN Y SINTAXIS ---
 	connStr := "postgresql://postgres:unah2026@db:5432/sistema_unach?sslmode=disable"
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
 		log.Fatal(err)
 	}
+	defer db.Close()
 
 	app := fiber.New()
 
@@ -58,7 +61,7 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 
-	// RUTA PARA MATERIAS: El DISTINCT evita que se repitan en la interfaz
+	// RUTA PARA MATERIAS
 	handlerMaterias := func(c *fiber.Ctx) error {
 		rows, err := db.Query("SELECT DISTINCT id, nombre FROM clases ORDER BY nombre ASC")
 		if err != nil {
@@ -102,7 +105,7 @@ func main() {
 		return c.JSON(fiber.Map{"mensaje": "¡Bienvenido, " + nombreAlum + "!"})
 	})
 
-	// RUTA PARA GENERAR PDF Y ENVIAR CORREO
+	// RUTA PARA CERRAR CLASE
 	app.Post("/api/cerrar-clase", func(c *fiber.Ctx) error {
 		var req struct { ClaseID int `json:"clase_id"` }
 		c.BodyParser(&req)
@@ -111,8 +114,8 @@ func main() {
 		db.QueryRow("SELECT nombre FROM clases WHERE id = $1", req.ClaseID).Scan(&nombreClase)
 
 		rows, _ := db.Query(`SELECT a.nombre, CASE WHEN asis.id IS NULL THEN 'Faltó' ELSE 'Asistió' END 
-                             FROM alumnos a LEFT JOIN asistencias asis ON a.id = asis.alumno_id 
-                             AND asis.clase_id = $1 AND asis.fecha_hora::date = CURRENT_DATE`, req.ClaseID)
+							 FROM alumnos a LEFT JOIN asistencias asis ON a.id = asis.alumno_id 
+							 AND asis.clase_id = $1 AND asis.fecha_hora::date = CURRENT_DATE`, req.ClaseID)
 		
 		pdf := gofpdf.New("P", "mm", "A4", "")
 		pdf.AddPage()
