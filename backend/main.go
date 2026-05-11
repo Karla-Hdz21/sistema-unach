@@ -47,8 +47,7 @@ func esHorarioPermitido(claseNombre string) bool {
 
 func main() {
 	// Asegúrate de que la base de datos esté corriendo en el puerto 5432
-	connStr := "postgresql://postgres:unah2026@db:5432/sistema_unach?sslmode=disable"	db, err := sql.Open("postgres", connStr)
-	if err != nil {
+	connStr := "postgresql://postgres:unah2026@db:5432/sistema_unach?sslmode=disable"
 		log.Fatal(err)
 	}
 
