@@ -21,7 +21,7 @@ type AsistenciaRequest struct {
 }
 
 func avisarAPython(alumnoID string, materia string) {
-	// ACTUALIZADO: Nueva IP Elástica
+	// IP de tu servidor de AWS para la notificación
 	url := "http://54.173.32.242:8001/notificar"
 	datos := map[string]string{"alumno_id": alumnoID, "materia": materia}
 	body, _ := json.Marshal(datos)
@@ -42,11 +42,13 @@ func esHorarioPermitido(claseNombre string) bool {
 		if dia == time.Tuesday && minutos >= 1140 && minutos <= 1200 { return true }
 		if dia == time.Thursday && minutos >= 1200 && minutos <= 1260 { return true }
 	}
+	// Permitir pruebas fines de semana
 	if dia == time.Saturday || dia == time.Sunday { return true }
 	return false
 }
 
 func main() {
+	// Conexión a la base de datos de Docker
 	connStr := "postgresql://postgres:unah2026@db:5432/sistema_unach?sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -56,9 +58,11 @@ func main() {
 
 	app := fiber.New()
 
+	// CONFIGURACIÓN DE CORS CORREGIDA PARA VERCEL
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "https://sistema-unach.vercel.app, http://localhost:5173",
-		AllowHeaders: "Origin, Content-Type, Accept",
+		AllowOrigins: "*", // Permite peticiones desde cualquier origen (Vercel, Local, etc.)
+		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
 
 	handlerMaterias := func(c *fiber.Ctx) error {
@@ -78,6 +82,7 @@ func main() {
 		return c.JSON(clases)
 	}
 
+	// Rutas de la API
 	app.Get("/clases", handlerMaterias)
 	app.Get("/api/materias", handlerMaterias)
 
@@ -142,5 +147,6 @@ func main() {
 		return c.JSON(fiber.Map{"mensaje": "Reporte enviado con éxito"})
 	})
 
+	// Escuchar en todas las interfaces en el puerto 3000
 	log.Fatal(app.Listen("0.0.0.0:3000"))
 }
