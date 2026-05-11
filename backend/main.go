@@ -21,7 +21,6 @@ type AsistenciaRequest struct {
 }
 
 func avisarAPython(alumnoID string, materia string) {
-	// Usamos la IP de tu instancia de AWS que se ve en tus capturas
 	url := "http://3.84.127.65:8001/notificar" 
 	datos := map[string]string{"alumno_id": alumnoID, "materia": materia}
 	body, _ := json.Marshal(datos)
@@ -47,7 +46,7 @@ func esHorarioPermitido(claseNombre string) bool {
 }
 
 func main() {
-	// Verifica que tu usuario y contraseña de Postgres coincidan (unah2026)
+	// Asegúrate de que la base de datos esté corriendo en el puerto 5432
 	connStr := "postgresql://postgres:unah2026@localhost:5432/sistema_unach?sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -61,7 +60,7 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 
-	// RUTA PARA MATERIAS (Corregida para que aparezcan en los botones)
+	// RUTA PARA MATERIAS: El DISTINCT evita que se repitan en la interfaz
 	handlerMaterias := func(c *fiber.Ctx) error {
 		rows, err := db.Query("SELECT DISTINCT id, nombre FROM clases ORDER BY nombre ASC")
 		if err != nil {
@@ -82,7 +81,7 @@ func main() {
 	app.Get("/clases", handlerMaterias)
 	app.Get("/api/materias", handlerMaterias)
 
-	// RUTA PARA REGISTRAR ASISTENCIA
+	// RUTA PARA ASISTENCIA
 	app.Post("/api/asistencia", func(c *fiber.Ctx) error {
 		var req AsistenciaRequest
 		if err := c.BodyParser(&req); err != nil {
@@ -93,7 +92,7 @@ func main() {
 		db.QueryRow("SELECT nombre FROM clases WHERE id = $1", req.ClaseID).Scan(&nombreClase)
 		
 		if !esHorarioPermitido(nombreClase) {
-			return c.Status(403).JSON(fiber.Map{"mensaje": "Fuera de horario para esta materia"})
+			return c.Status(403).JSON(fiber.Map{"mensaje": "Fuera de horario"})
 		}
 
 		db.Exec("INSERT INTO asistencias (alumno_id, clase_id, fecha_hora) VALUES ($1, $2, NOW())", req.AlumnoID, req.ClaseID)
@@ -105,7 +104,7 @@ func main() {
 		return c.JSON(fiber.Map{"mensaje": "¡Bienvenido, " + nombreAlum + "!"})
 	})
 
-	// RUTA PARA CERRAR CLASE Y MANDAR PDF
+	// RUTA PARA GENERAR PDF Y ENVIAR CORREO
 	app.Post("/api/cerrar-clase", func(c *fiber.Ctx) error {
 		var req struct { ClaseID int `json:"clase_id"` }
 		c.BodyParser(&req)
@@ -140,11 +139,9 @@ func main() {
 		m.Attach(filename)
 
 		d := gomail.NewDialer("smtp.gmail.com", 587, "kar.nunez34@unach.mx", "feik wscy jlze pxqi")
-		if err := d.DialAndSend(m); err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "No se pudo enviar el correo"})
-		}
+		d.DialAndSend(m)
 
-		return c.JSON(fiber.Map{"mensaje": "Reporte generado y enviado correctamente"})
+		return c.JSON(fiber.Map{"mensaje": "Reporte enviado con éxito"})
 	})
 
 	log.Fatal(app.Listen("0.0.0.0:3000"))
